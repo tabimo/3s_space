@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ID转换为SQL IN子句工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    
+    <!-- 配置Tailwind自定义颜色和字体 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        neutral: '#64748B',
+                        dark: '#1E293B',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .transition-custom {
+                transition: all 0.3s ease;
+            }
+            .shadow-custom {
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+    <div class="container mx-auto px-4 py-8 max-w-5xl">
+        <!-- 页面标题 -->
+        <header class="text-center mb-10">
+            <h1 class="text-[clamp(1.8rem,4vw,2.5rem)] font-bold text-dark mb-3">ID转换为SQL IN子句工具</h1>
+            <p class="text-neutral text-lg">将多行ID快速转换为SQL查询中IN子句的格式</p>
+        </header>
+        
+        <!-- 主内容区 -->
+        <main class="bg-white rounded-xl shadow-custom p-6 md:p-8">
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- 输入区域 -->
+                <div class="space-y-4">
+                    <label for="input-ids" class="block text-dark font-medium text-lg">输入ID（每行一个）</label>
+                    <div class="relative">
+                        <textarea 
+                            id="input-ids" 
+                            class="w-full h-64 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-custom resize-none"
+                            placeholder="在此输入ID，每行一个..."></textarea>
+                        <button id="clear-input" class="absolute top-3 right-3 text-neutral hover:text-red-500 transition-custom">
+                            <i class="fa fa-times-circle text-xl"></i>
+                        </button>
+                    </div>
+                    <div class="flex flex-wrap gap-3">
+                        <button id="convert-btn" class="bg-primary hover:bg-primary/90 text-white font-medium py-2 px-6 rounded-lg transition-custom flex items-center">
+                            <i class="fa fa-exchange mr-2"></i> 转换
+                        </button>
+                        <button id="load-example" class="bg-neutral hover:bg-neutral/90 text-white font-medium py-2 px-6 rounded-lg transition-custom flex items-center">
+                            <i class="fa fa-file-text-o mr-2"></i> 加载示例
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 输出区域 -->
+                <div class="space-y-4">
+                    <label for="output-sql" class="block text-dark font-medium text-lg">SQL IN子句结果</label>
+                    <div class="relative">
+                        <textarea 
+                            id="output-sql" 
+                            class="w-full h-64 p-4 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-secondary focus:border-secondary transition-custom resize-none"
+                            placeholder="转换后的SQL IN子句将显示在这里..." readonly></textarea>
+                        <button id="copy-output" class="absolute top-3 right-3 text-neutral hover:text-secondary transition-custom">
+                            <i class="fa fa-clipboard text-xl"></i>
+                        </button>
+                    </div>
+                    <div id="copy-message" class="hidden text-secondary font-medium">
+                        <i class="fa fa-check-circle"></i> 已复制到剪贴板！
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 选项区域 -->
+            <div class="mt-8 pt-6 border-t border-gray-200">
+                <h2 class="text-lg font-semibold text-dark mb-4">转换选项</h2>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="flex items-center space-x-2">
+                        <input type="checkbox" id="include-in" class="w-5 h-5 text-primary rounded" checked>
+                        <label for="include-in" class="text-neutral">包含 IN 关键字</label>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <input type="checkbox" id="use-single-quotes" class="w-5 h-5 text-primary rounded" checked>
+                        <label for="use-single-quotes" class="text-neutral">使用单引号 (') 包裹ID</label>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <input type="checkbox" id="trim-whitespace" class="w-5 h-5 text-primary rounded" checked>
+                        <label for="trim-whitespace" class="text-neutral">自动去除首尾空白字符</label>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <input type="checkbox" id="remove-duplicates" class="w-5 h-5 text-primary rounded" checked>
+                        <label for="remove-duplicates" class="text-neutral">自动去除重复ID</label>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- 使用说明 -->
+        <section class="mt-10 bg-white rounded-xl shadow-custom p-6 md:p-8">
+            <h2 class="text-xl font-semibold text-dark mb-4">使用说明</h2>
+            <ul class="list-disc pl-5 text-neutral space-y-2">
+                <li>在左侧文本框中输入ID，每行一个</li>
+                <li>点击"转换"按钮将ID转换为SQL IN子句格式</li>
+                <li>可以使用右侧的复制按钮将结果复制到剪贴板</li>
+                <li>通过选项区域可以自定义转换结果的格式</li>
+            </ul>
+        </section>
+        
+        <!-- 页脚 -->
+        <footer class="mt-12 text-center text-neutral">
+            <p>© 2023 ID转换工具 | 一个简单实用的开发辅助工具</p>
+        </footer>
+    </div>
+
+    <script>
+        // 获取DOM元素
+        const inputIds = document.getElementById('input-ids');
+        const outputSql = document.getElementById('output-sql');
+        const convertBtn = document.getElementById('convert-btn');
+        const clearInputBtn = document.getElementById('clear-input');
+        const copyOutputBtn = document.getElementById('copy-output');
+        const copyMessage = document.getElementById('copy-message');
+        const loadExampleBtn = document.getElementById('load-example');
+        
+        // 选项复选框
+        const includeInCheckbox = document.getElementById('include-in');
+        const useSingleQuotesCheckbox = document.getElementById('use-single-quotes');
+        const trimWhitespaceCheckbox = document.getElementById('trim-whitespace');
+        const removeDuplicatesCheckbox = document.getElementById('remove-duplicates');
+        
+        // 示例ID数据
+        const exampleIds = `id1430875409
+id346080608
+id455705533
+id455705533
+id735701965
+id735701965
+id1070578762
+id844035425`;
+        
+        // 加载示例数据
+        loadExampleBtn.addEventListener('click', () => {
+            inputIds.value = exampleIds;
+            convertIds();
+            // 添加动画效果
+            inputIds.classList.add('border-green-400');
+            setTimeout(() => {
+                inputIds.classList.remove('border-green-400');
+            }, 1000);
+        });
+        
+        // 清除输入
+        clearInputBtn.addEventListener('click', () => {
+            inputIds.value = '';
+            outputSql.value = '';
+        });
+        
+        // 复制结果
+        copyOutputBtn.addEventListener('click', () => {
+            if (outputSql.value) {
+                outputSql.select();
+                document.execCommand('copy');
+                
+                // 显示复制成功消息
+                copyMessage.classList.remove('hidden');
+                setTimeout(() => {
+                    copyMessage.classList.add('hidden');
+                }, 2000);
+            }
+        });
+        
+        // 转换ID为SQL IN子句
+        function convertIds() {
+            let input = inputIds.value;
+            if (!input.trim()) {
+                outputSql.value = '';
+                return;
+            }
+            
+            // 按行分割
+            let ids = input.split('\n');
+            
+            // 处理每个ID
+            ids = ids.map(id => {
+                // 去除首尾空白
+                if (trimWhitespaceCheckbox.checked) {
+                    id = id.trim();
+                }
+                return id;
+            }).filter(id => {
+                // 过滤空字符串
+                return id !== '';
+            });
+            
+            // 去除重复ID
+            if (removeDuplicatesCheckbox.checked) {
+                ids = [...new Set(ids)];
+            }
+            
+            // 用引号包裹ID
+            const quote = useSingleQuotesCheckbox.checked ? "'" : '';
+            const quotedIds = ids.map(id => `${quote}${id}${quote}`);
+            
+            // 组合成IN子句
+            const inClause = quotedIds.join(', ');
+            const result = includeInCheckbox.checked ? `IN (${inClause})` : `(${inClause})`;
+            
+            // 显示结果并添加动画效果
+            outputSql.value = result;
+            outputSql.classList.add('border-green-400');
+            setTimeout(() => {
+                outputSql.classList.remove('border-green-400');
+            }, 500);
+        }
+        
+        // 转换按钮点击事件
+        convertBtn.addEventListener('click', convertIds);
+        
+        // 选项改变时重新转换
+        [includeInCheckbox, useSingleQuotesCheckbox, 
+         trimWhitespaceCheckbox, removeDuplicatesCheckbox].forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                if (inputIds.value.trim()) {
+                    convertIds();
+                }
+            });
+        });
+        
+        // 按Enter键时转换（按住Shift可以换行）
+        inputIds.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                convertIds();
+            }
+        });
+        
+        // 初始加载示例数据
+        window.addEventListener('load', () => {
+            // 模拟延迟加载，提升用户体验
+            setTimeout(() => {
+                inputIds.value = exampleIds;
+                convertIds();
+            }, 300);
+        });
+    </script>
+</body>
+</html>
